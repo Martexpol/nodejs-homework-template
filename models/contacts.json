@@ -57,6 +57,18 @@
     "id": "7tKUuoyMkoBTjQfmrvaYE",
     "name": "Alice Smith",
     "email": "alice.smith@example.com",
-    "phone": "123456789"
+    "phone": "(123) 123-4567"
+  },
+  {
+    "id": "ZOwY-yaHe8YCF1n62kDFs",
+    "name": "Aleksander Puszkin",
+    "email": "puszkin@example.com",
+    "phone": "(123) 123-4509"
+  },
+  {
+    "id": "dPG6giSx9DIkWqubgOaOD",
+    "name": "Fiodor Fiodorowicz",
+    "email": "fiodori@example.com",
+    "phone": "(123) 123-3456"
   }
 ]

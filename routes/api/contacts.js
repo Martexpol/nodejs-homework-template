@@ -10,7 +10,7 @@ const {
 const router = express.Router();
 const Joi = require("joi");
 
-const schema = Joi.object({
+const schemaPost = Joi.object({
 	name: Joi.string()
 		.regex(/^[a-zA-Z\s]+$/)
 		.min(3)
@@ -23,11 +23,23 @@ const schema = Joi.object({
 		})
 		.required(),
 	phone: Joi.string()
-		.regex(/^\+?\d{6,11}$/)
+		.regex(/^\(\d{3}\) \d{3}-\d{4}$/)
 		.required(),
 });
 
-const validateBody = (req, res, next) => {
+const schemaPatch = Joi.object({
+	name: Joi.string()
+		.regex(/^[a-zA-Z\s]+$/)
+		.min(3)
+		.max(30),
+	email: Joi.string().email({
+		minDomainSegments: 2,
+		tlds: { allow: ["com", "net"] },
+	}),
+	phone: Joi.string().regex(/^\(\d{3}\) \d{3}-\d{4}$/),
+}).or("name", "email", "phone");
+
+const validateBody = (schema) => (req, res, next) => {
 	const { error } = schema.validate(req.body);
 	if (error) {
 		return res.status(400).json({
@@ -73,7 +85,7 @@ router.get("/:contactId", async (req, res, next) => {
 	}
 });
 
-router.post("/", validateBody, async (req, res, next) => {
+router.post("/", validateBody(schemaPost), async (req, res, next) => {
 	try {
 		const { name, email, phone } = req.body;
 
@@ -109,7 +121,7 @@ router.delete("/:contactId", async (req, res, next) => {
 	}
 });
 
-router.put("/:contactId", validateBody, async (req, res, next) => {
+router.put("/:contactId", validateBody(schemaPatch), async (req, res, next) => {
 	try {
 		const { contactId } = req.params;
 		const body = req.body;
