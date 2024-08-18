@@ -1,15 +1,17 @@
-const express = require("express");
-const {
+import express from "express";
+import {
 	listContacts,
 	getContactById,
 	addContact,
 	removeContact,
 	updateContact,
-} = require("../../models/contacts");
+	updateStatusContact,
+} from "../../models/contacts.js";
+import Joi from "joi";
 
 const router = express.Router();
-const Joi = require("joi");
 
+// Schemas
 const schemaPost = Joi.object({
 	name: Joi.string()
 		.regex(/^[a-zA-Z\s]+$/)
@@ -39,6 +41,11 @@ const schemaPatch = Joi.object({
 	phone: Joi.string().regex(/^\(\d{3}\) \d{3}-\d{4}$/),
 }).or("name", "email", "phone");
 
+const schemaPatchFavorite = Joi.object({
+	favorite: Joi.boolean().required(),
+});
+
+// Validation
 const validateBody = (schema) => (req, res, next) => {
 	const { error } = schema.validate(req.body);
 	if (error) {
@@ -50,6 +57,7 @@ const validateBody = (schema) => (req, res, next) => {
 	next();
 };
 
+// Router
 router.get("/", async (req, res, next) => {
 	try {
 		const contacts = await listContacts();
@@ -151,4 +159,40 @@ router.put("/:contactId", validateBody(schemaPatch), async (req, res, next) => {
 	}
 });
 
-module.exports = router;
+router.patch(
+	"/:contactId/favorite",
+	validateBody(schemaPatchFavorite),
+	async (req, res, next) => {
+		try {
+			const { contactId } = req.params;
+			const { favorite } = req.body;
+
+			if (favorite === undefined) {
+				return res.status(400).json({
+					code: 400,
+					message: "Missing field favorite",
+				});
+			}
+
+			const contact = await updateStatusContact(contactId, favorite);
+
+			if (!contact) {
+				return res.status(404).json({
+					status: "Not Found",
+					code: 404,
+					message: "Contact not found",
+				});
+			} else {
+				return res.status(200).json({
+					status: "success",
+					code: 200,
+					data: { contact },
+				});
+			}
+		} catch (error) {
+			next(error);
+		}
+	}
+);
+
+export default router;

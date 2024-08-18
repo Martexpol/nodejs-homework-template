@@ -1,12 +1,8 @@
-const fs = require("fs/promises");
-const { nanoid } = require("nanoid");
-const path = require("path");
-const contactsPath = path.join(__dirname, "contacts.json");
+import { Contact } from "./contact.js";
 
 const listContacts = async () => {
 	try {
-		const data = await fs.readFile(contactsPath, "utf-8");
-		const contacts = JSON.parse(data);
+		const contacts = await Contact.find();
 		return contacts;
 	} catch (error) {
 		throw new Error("Failed to load contacts");
@@ -15,8 +11,7 @@ const listContacts = async () => {
 
 const getContactById = async (contactId) => {
 	try {
-		const contacts = await listContacts();
-		const contact = contacts.find((contact) => contact.id === contactId);
+		const contact = await Contact.findById(contactId);
 		return contact || null;
 	} catch (error) {
 		throw new Error("Failed to retrieve contact by ID");
@@ -25,19 +20,7 @@ const getContactById = async (contactId) => {
 
 const addContact = async (body) => {
 	try {
-		const { name, email, phone } = body;
-		const contacts = await listContacts();
-
-		const newContact = {
-			id: nanoid(),
-			name,
-			email,
-			phone,
-		};
-
-		contacts.push(newContact);
-
-		await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
+		const newContact = await Contact.create(body);
 		return newContact;
 	} catch (error) {
 		throw new Error("Failed to add new contact");
@@ -46,41 +29,42 @@ const addContact = async (body) => {
 
 const removeContact = async (contactId) => {
 	try {
-		const contacts = await listContacts();
-		const index = contacts.findIndex((contact) => contact.id === contactId);
-		if (index === -1) {
-			return null;
-		}
-
-		const [removedContact] = contacts.splice(index, 1);
-
-		await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-		return removedContact;
+		const removedContact = await Contact.findByIdAndDelete(contactId);
+		return removedContact || null;
 	} catch (error) {
 		throw new Error("Failed to remove contact");
 	}
 };
 const updateContact = async (contactId, body) => {
 	try {
-		const contacts = await listContacts();
-		const index = contacts.findIndex((contact) => contact.id === contactId);
-		if (index === -1) {
-			return null;
-		}
+		const updatedContact = await Contact.findByIdAndUpdate(contactId, body, {
+			new: true,
+		});
 
-		contacts[index] = { ...contacts[index], ...body };
-		await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-
-		return contacts[index];
+		return updatedContact || null;
 	} catch (error) {
 		throw new Error("Failed to update contact");
 	}
 };
 
-module.exports = {
+const updateStatusContact = async (contactId, favorite) => {
+	try {
+		const updatedContact = await Contact.findByIdAndUpdate(
+			contactId,
+			{ favorite },
+			{ new: true }
+		);
+		return updatedContact;
+	} catch (error) {
+		throw new Error("Failed to update contact");
+	}
+};
+
+export {
 	listContacts,
 	getContactById,
 	removeContact,
 	addContact,
 	updateContact,
+	updateStatusContact,
 };
