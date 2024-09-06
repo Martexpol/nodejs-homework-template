@@ -1,4 +1,5 @@
 import express from "express";
+import passport from "passport";
 import {
 	listContacts,
 	getContactById,
@@ -8,6 +9,7 @@ import {
 	updateStatusContact,
 } from "../../models/contacts.js";
 import Joi from "joi";
+import { auth } from "../../models/auth.js";
 
 const router = express.Router();
 
@@ -58,9 +60,9 @@ const validateBody = (schema) => (req, res, next) => {
 };
 
 // Router
-router.get("/", async (req, res, next) => {
+router.get("/", auth, async (req, res, next) => {
 	try {
-		const contacts = await listContacts();
+		const contacts = await listContacts(req.user.id);
 		res.status(200).json({
 			status: "success",
 			code: 200,
@@ -71,7 +73,7 @@ router.get("/", async (req, res, next) => {
 	}
 });
 
-router.get("/:contactId", async (req, res, next) => {
+router.get("/:contactId", auth, async (req, res, next) => {
 	try {
 		const { contactId } = req.params;
 		const contact = await getContactById(contactId);
@@ -93,11 +95,12 @@ router.get("/:contactId", async (req, res, next) => {
 	}
 });
 
-router.post("/", validateBody(schemaPost), async (req, res, next) => {
+router.post("/", auth, validateBody(schemaPost), async (req, res, next) => {
 	try {
 		const { name, email, phone } = req.body;
+		const { _id: ownerId } = req.user;
 
-		const newContact = await addContact({ name, email, phone });
+		const newContact = await addContact({ name, email, phone }, ownerId);
 		res.status(201).json({
 			status: "success",
 			code: 201,
@@ -108,7 +111,7 @@ router.post("/", validateBody(schemaPost), async (req, res, next) => {
 	}
 });
 
-router.delete("/:contactId", async (req, res, next) => {
+router.delete("/:contactId", auth, async (req, res, next) => {
 	try {
 		const { contactId } = req.params;
 		const contact = await removeContact(contactId);
@@ -129,38 +132,44 @@ router.delete("/:contactId", async (req, res, next) => {
 	}
 });
 
-router.put("/:contactId", validateBody(schemaPatch), async (req, res, next) => {
-	try {
-		const { contactId } = req.params;
-		const body = req.body;
+router.put(
+	"/:contactId",
+	auth,
+	validateBody(schemaPatch),
+	async (req, res, next) => {
+		try {
+			const { contactId } = req.params;
+			const body = req.body;
 
-		if (!body || Object.keys(body).length === 0) {
-			return res.status(400).json({
-				code: 400,
-				message: "Missing fields",
-			});
-		}
+			if (!body || Object.keys(body).length === 0) {
+				return res.status(400).json({
+					code: 400,
+					message: "Missing fields",
+				});
+			}
 
-		const contact = await updateContact(contactId, body);
-		if (!contact) {
-			res.status(404).json({
-				status: "Not Found",
-				code: 404,
-			});
-		} else {
-			res.status(200).json({
-				status: "Contact updated",
-				code: 200,
-				data: { contact },
-			});
+			const contact = await updateContact(contactId, body);
+			if (!contact) {
+				res.status(404).json({
+					status: "Not Found",
+					code: 404,
+				});
+			} else {
+				res.status(200).json({
+					status: "Contact updated",
+					code: 200,
+					data: { contact },
+				});
+			}
+		} catch (error) {
+			next(error);
 		}
-	} catch (error) {
-		next(error);
 	}
-});
+);
 
 router.patch(
 	"/:contactId/favorite",
+	auth,
 	validateBody(schemaPatchFavorite),
 	async (req, res, next) => {
 		try {

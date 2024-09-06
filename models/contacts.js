@@ -1,45 +1,50 @@
 import { Contact } from "./contact.js";
 
-const listContacts = async () => {
+const listContacts = async (ownerId) => {
 	try {
-		const contacts = await Contact.find();
+		const contacts = await Contact.find({ owner: ownerId });
 		return contacts;
 	} catch (error) {
 		throw new Error("Failed to load contacts");
 	}
 };
 
-const getContactById = async (contactId) => {
+const getContactById = async (contactId, ownerId) => {
 	try {
-		const contact = await Contact.findById(contactId);
+		const contact = await Contact.findById({ _id: contactId, owner: ownerId });
 		return contact || null;
 	} catch (error) {
 		throw new Error("Failed to retrieve contact by ID");
 	}
 };
 
-const addContact = async (body) => {
+const addContact = async (body, ownerId) => {
 	try {
-		const newContact = await Contact.create(body);
+		const newContact = await Contact.create({ ...body, owner: ownerId });
 		return newContact;
 	} catch (error) {
 		throw new Error("Failed to add new contact");
 	}
 };
 
-const removeContact = async (contactId) => {
+const removeContact = async (contactId, ownerId) => {
 	try {
-		const removedContact = await Contact.findByIdAndDelete(contactId);
+		const removedContact = await Contact.findByIdAndDelete({
+			_id: contactId,
+			owner: ownerId,
+		});
 		return removedContact || null;
 	} catch (error) {
 		throw new Error("Failed to remove contact");
 	}
 };
-const updateContact = async (contactId, body) => {
+const updateContact = async (contactId, body, ownerId) => {
 	try {
-		const updatedContact = await Contact.findByIdAndUpdate(contactId, body, {
-			new: true,
-		});
+		const updatedContact = await Contact.findByIdAndUpdate(
+			{ _id: contactId, owner: ownerId },
+			body,
+			{ new: true }
+		);
 
 		return updatedContact || null;
 	} catch (error) {
@@ -47,10 +52,10 @@ const updateContact = async (contactId, body) => {
 	}
 };
 
-const updateStatusContact = async (contactId, favorite) => {
+const updateStatusContact = async (contactId, favorite, ownerId) => {
 	try {
 		const updatedContact = await Contact.findByIdAndUpdate(
-			contactId,
+			{ _id: contactId, owner: ownerId },
 			{ favorite },
 			{ new: true }
 		);
