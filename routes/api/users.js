@@ -2,9 +2,11 @@ import express from "express";
 import Joi from "joi";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { User } from "../models/user.js";
-import { auth } from "../models/auth.js";
-import passport from "../config/config.js";
+import { User } from "../../models/user.js";
+import { auth } from "../../models/auth.js";
+import { Blacklist } from "../../models/blacklist.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 const secret = process.env.SECRET;
 
@@ -73,11 +75,21 @@ userRouter.post("/login", async (req, res, next) => {
 	try {
 		const user = await User.findOne({ email });
 
-		if (!user || !user.validPassword(password)) {
+		if (!user) {
 			return res.status(401).json({
 				status: "error",
 				code: 401,
-				message: "Email or password is wrong",
+				message: "User doesn't exist",
+				data: "Unauthorized",
+			});
+		}
+
+		const passwordValid = await bcrypt.compare(password, user.password);
+		if (!passwordValid) {
+			return res.status(401).json({
+				status: "error",
+				code: 401,
+				message: "Email or Wrong password",
 				data: "Unauthorized",
 			});
 		}
@@ -115,7 +127,10 @@ userRouter.get("/logout", auth, async (req, res, next) => {
 			});
 		}
 
-		user.token = null;
+		const blacklistedToken = new Blacklist({ token: req.token });
+		await blacklistedToken.save();
+
+		// user.token = null;
 		await user.save();
 
 		res.status(204).send();
@@ -129,10 +144,10 @@ userRouter.get("/current", auth, async (req, res, next) => {
 		const user = await User.findById(req.user.id);
 
 		if (!user) {
-			res.status(401).json({
+			return res.status(401).json({
 				status: "error",
 				code: 401,
-				message: "Not authorized",
+				message: "Not authorized ",
 			});
 		} else {
 			res.status(200).json({
