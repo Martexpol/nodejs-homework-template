@@ -5,8 +5,7 @@ import bcrypt from "bcryptjs";
 import { User } from "../../models/user.js";
 import { auth } from "../../models/auth.js";
 import { Blacklist } from "../../models/blacklist.js";
-import pkg from "jimp";
-const { Jimp } = pkg;
+import Jimp from "jimp";
 const app = express();
 
 import gravatar from "gravatar";
@@ -226,8 +225,6 @@ userRouter.patch(
 	upload.single("picture"),
 	async (req, res, next) => {
 		try {
-			// Główna funkcja, w której będziesz sprawdzać 4 warunki
-
 			// 1 - sprawdzenie autoryzacji
 			const user = await User.findById(req.user.id);
 			if (!user) {
@@ -236,49 +233,35 @@ userRouter.patch(
 					code: 401,
 					message: "Not authorized",
 				});
-			} else {
-				console.log("XXX user authorized");
 			}
 
 			// 2 - upload pliku (multer)
-			//dekonstrukcja pliku
 			const { path: temporaryName, originalname } = req.file;
-			// wskazanie ścieżki do zapisu pliku
 			const fileName = path.join(storeImage, originalname);
-			// nowa unikalna nazwa pliku po zmianie
 			const uniqueFileName = `${req.user.id}_${Date.now()}.jpg`;
-			// nowa ścieżka pliku
 			const finalFileName = path.join(storeImage, uniqueFileName);
-
-			console.log("XXX temporaryName: ", temporaryName);
-			console.log("XXX fileName: ", fileName);
-			console.log("XXX uniqueFileName: ", uniqueFileName);
-			console.log("XXX finalFileName: ", finalFileName);
 
 			try {
 				await fs.rename(temporaryName, fileName);
-				console.log("zaladowano plik");
 			} catch (err) {
 				await fs.unlink(temporaryName);
-				console.log("nie zaladowano pliku");
+				console.log("File upload failed");
 				return next(err);
 			}
 
-			// Warunek 3 - zmiana rozmiaru (jimp)
+			// 3 - zmiana rozmiaru (jimp)
 			async function resize() {
 				try {
 					const image = await Jimp.read(fileName);
-					console.log("XXX image: ", image);
 					image.resize(250, 250);
 					await image.writeAsync(finalFileName);
-					console.log("Obraz zapisany w:", finalFileName);
 				} catch (error) {
-					console.error("Błąd podczas zmiany rozmiaru obrazu:", error);
+					console.error("Error while resizing the image", error);
 				}
 			}
 			await resize();
 
-			// Warunek 4 - update uzytkownika
+			// 4 - update uzytkownika
 			try {
 				user.avatarURL = finalFileName;
 				await user.save();
@@ -288,7 +271,6 @@ userRouter.patch(
 					message: { avatarURL: finalFileName },
 				});
 			} catch (error) {
-				console.error("Błąd w warunku 4 - update uzytkownika:", error);
 				return next(err);
 			}
 		} catch (error) {
