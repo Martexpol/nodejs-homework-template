@@ -5,7 +5,8 @@ import bcrypt from "bcryptjs";
 import { User } from "../../models/user.js";
 import { auth } from "../../models/auth.js";
 import { Blacklist } from "../../models/blacklist.js";
-import { Jimp } from "jimp";
+import pkg from "jimp";
+const { Jimp } = pkg;
 const app = express();
 
 import gravatar from "gravatar";
