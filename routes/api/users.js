@@ -6,6 +6,8 @@ import { User } from "../../models/user.js";
 import { auth } from "../../models/auth.js";
 import { Blacklist } from "../../models/blacklist.js";
 import Jimp from "jimp";
+import { nanoid } from "nanoid";
+import { sendVerificationEmail } from "../../mailer/email.js";
 const app = express();
 
 import gravatar from "gravatar";
@@ -94,14 +96,18 @@ userRouter.post("/signup", async (req, res, next) => {
 			d: "mm",
 		});
 
+		const verificationToken = nanoid(30);
+
 		const hashedPassword = await bcrypt.hash(password, 10);
 		const newUser = new User({
 			email,
 			password: hashedPassword,
 			subscription: "starter",
 			avatarURL: avatarURL,
+			verificationToken: verificationToken,
 		});
 		await newUser.save();
+		await sendVerificationEmail(email, verificationToken);
 
 		return res.status(201).json({
 			status: "success",
@@ -147,6 +153,16 @@ userRouter.post("/login", async (req, res, next) => {
 				status: "error",
 				code: 401,
 				message: "Email or Wrong password",
+				data: "Unauthorized",
+			});
+		}
+
+		if (!user.verify) {
+			await sendVerificationEmail(email, user.verificationToken);
+			return res.status(401).json({
+				status: "error",
+				code: 401,
+				message: "User not verified",
 				data: "Unauthorized",
 			});
 		}
@@ -279,5 +295,68 @@ userRouter.patch(
 		}
 	}
 );
+
+// user verification
+userRouter.get("/verify/:verificationToken", async (req, res, next) => {
+	const { verificationToken } = req.params;
+	try {
+		const user = await User.findOne({ verificationToken });
+
+		if (!user) {
+			return res.status(404).json({
+				status: "error",
+				code: 404,
+				message: "Not found ",
+			});
+		}
+
+		user.verificationToken = " ";
+		user.verify = true;
+		await user.save();
+
+		return res.status(200).json({
+			status: "success",
+			code: 200,
+			data: { verificationToken: null, verify: true },
+			message: "Verification successful",
+		});
+	} catch (error) {
+		next(error);
+	}
+});
+
+userRouter.post("/verify", async (req, res, next) => {
+	// sprawdzenie adresu email
+	const { email } = req.body;
+	if (!email) {
+		return res.status(400).json({
+			message: "Missing required field email",
+		});
+	}
+
+	try {
+		// sprawdzenie czy user istnieje
+		const user = await User.findOne({ email });
+		if (!user) {
+			return res.status(404).json({
+				message: "User not found",
+			});
+		}
+		// sprawdzenie czy user jest zweryfikowany
+		if (user.verify) {
+			return res.status(400).json({
+				message: "Verification has already been passed",
+			});
+		}
+		// ponowne wyslanie maila weryfikacyjnego
+		await sendVerificationEmail(user.email, user.verificationToken);
+
+		return res.status(200).json({
+			message: "Verification email sent",
+		});
+	} catch (error) {
+		next(error);
+	}
+});
 
 export default userRouter;
